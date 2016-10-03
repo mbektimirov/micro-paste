@@ -1,5 +1,6 @@
 # micro-paste
 Run: `./build_and_run`
+
 Idea runner configuration:
 ```
 Main class: io.vertx.core.Launcher
