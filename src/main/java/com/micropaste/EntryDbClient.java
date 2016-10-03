@@ -37,7 +37,8 @@ public class EntryDbClient {
         "CREATE KEYSPACE IF NOT EXISTS micropaste WITH replication " +
         "= {'class':'SimpleStrategy', 'replication_factor':1};");
 
-    // micropaste.entries causes error: "no viable alternative at input 'entries'"
+    // 'micropaste.entries' name causes error: "no viable alternative at input 'entries'"
+    // Put 'private' as a primary key to allow clustering order by creation_timestamp
     session.execute(
         "CREATE TABLE IF NOT EXISTS micropaste.paste_entries (" +
           "id uuid," +
@@ -46,9 +47,8 @@ public class EntryDbClient {
           "expires timestamp," +
           "private boolean," +
           "creation_timestamp timestamp," +
-          "group int," +
           "secret uuid," +
-          "PRIMARY KEY ((id, group), creation_timestamp)" +
+          "PRIMARY KEY ((private), creation_timestamp)" +
           ") WITH CLUSTERING ORDER BY (creation_timestamp DESC);");
   }
 
@@ -59,8 +59,8 @@ public class EntryDbClient {
 
     session.execute(
       "INSERT INTO micropaste.paste_entries(" +
-          "id, title, body, expires, private, creation_timestamp, group, secret) " +
-      "VALUES(?, ?, ?, ?, ?, ?, ?, ?);",
+          "id, title, body, expires, private, creation_timestamp, secret) " +
+      "VALUES(?, ?, ?, ?, ?, ?, ?);",
       id,
       params.get("title"),
       params.get("body"),
@@ -69,7 +69,6 @@ public class EntryDbClient {
         Boolean.valueOf(params.get("private")) :
         false,
       creationTimeStamp,
-      1, // Group. Hack to make "clustering order by" works properly
       secretUUID
     );
 
@@ -82,10 +81,8 @@ public class EntryDbClient {
   }
 
   public Map<String, Object> getAllEntriesPaginated(String page) {
-    // where group = 1; -> Exception: Partition key parts: id must be restricted as other parts are
-    // Not sorted by added time
     Statement st = new SimpleStatement(
-      "select * from micropaste.paste_entries" // where group = 1; "
+      "select * from micropaste.paste_entries where private=false"
     );
     st.setFetchSize(RESULTS_PER_PAGE);
 
